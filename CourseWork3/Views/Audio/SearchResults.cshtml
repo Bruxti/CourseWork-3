@@ -1,0 +1,108 @@
+﻿@model X.PagedList.IPagedList<AudioFile>
+
+@{
+	ViewData["Title"] = "Результаты поиска";
+}
+
+<h2>Результаты поиска</h2>
+
+@if (!Model.Any())
+{
+	<p>Ничего не найдено.</p>
+}
+else
+{
+	<ul class="list-unstyled">
+		@foreach (var audio in Model)
+		{
+			<li class="mb-3">
+				@{
+					var displayData = new List<(string Label, string? Value)>
+					{
+						("Название", audio.Title)
+					};
+
+					if (audio.IsMusicOnly)
+					{
+						displayData.Add(("Автор", audio.Author));
+						displayData.Add(("Жанр", audio.Genre));
+					}
+
+					var uploaderDisplay = !string.IsNullOrWhiteSpace(audio.User?.DisplayName) ? audio.User.DisplayName : "Неизвестный пользователь";
+					//displayData.Add(("Опубликовал", uploaderDisplay));
+				}
+				@foreach (var item in displayData)
+				{
+					<p>
+						<strong>@item.Label:</strong>
+						@if (!string.IsNullOrWhiteSpace(item.Value))
+						{
+							@item.Value
+						}
+						else
+						{
+							<em>Неизвестно</em>
+						}
+					</p>
+				}
+				@if (!string.IsNullOrWhiteSpace(audio.User?.Id))
+				{
+					<p>
+						<strong>Опубликовал:</strong>
+						<a asp-action="UserProfile" asp-controller="Audio" asp-route-id="@audio.User.Id">
+							@uploaderDisplay
+						</a>
+					</p>
+				}
+				<audio id="player-@audio.Id" src="/Audio/Stream/@audio.Id" controls style="width: 100%; max-width: 400px;">
+					<source src="@Url.Action("Stream", "Audio", new { id = audio.Id })" type="audio/mpeg"/>
+					Ваш браузер не поддерживает воспроизведение.
+				</audio>
+				<hr>
+			</li>
+		}
+	</ul>
+
+	<div class="pagination-container mt-4">
+		<ul class="pagination justify-content-center">
+			@if (Model.HasPreviousPage)
+			{
+				<li class="page-item">
+					<a class="page-link" href="@Url.Action("Index", new { page = Model.PageNumber - 1 })">« Назад</a>
+				</li>
+			}
+			@for (var i = 1; i <= Model.PageCount; i++)
+			{
+				<li class="page-item @(i == Model.PageNumber ? "active" : "")">
+					<a class="page-link" href="@Url.Action("Index", new { page = i })">@i</a>
+				</li>
+			}
+			@if (Model.HasNextPage)
+			{
+				<li class="page-item">
+					<a class="page-link" href="@Url.Action("Index", new { page = Model.PageNumber + 1 })">Вперед »</a>
+				</li>
+			}
+		</ul>
+	</div>
+	@section Scripts {
+		<script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const players = document.querySelectorAll('audio[id^="player-"]');
+
+            players.forEach(player => {
+                let playRegistered = false;
+                const id = player.id.replace("player-", "");
+
+                player.addEventListener('play', function () {
+                    if (playRegistered) return;
+                    playRegistered = true;
+
+                    fetch(`/Audio/RegisterPlay/${id}`, { method: 'POST' });
+                });
+            });
+        });
+    </script>
+	}
+
+}
